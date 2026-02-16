@@ -14,7 +14,7 @@ export default function App() {
   const { t } = useLanguage();
 
   const pageTitles = {
-    '/': 'FarmWise AI',
+    '/': 'Kisan Saathi AI',
     '/weather': t('weather'),
     '/crop-health': t('crop_health'),
     '/market': t('market_prices'),
@@ -33,8 +33,8 @@ export default function App() {
           <div className="top-nav__brand">
             <span className="top-nav__logo">🌾</span>
             <div>
-              <div className="top-nav__title">FarmWise AI</div>
-              <div className="top-nav__subtitle">Smart Farming Assistant</div>
+              <div className="top-nav__title">Kisan Saathi AI</div>
+              <div className="top-nav__subtitle">Aapka Apna Kheti Assistant</div>
             </div>
           </div>
         )}
@@ -48,7 +48,7 @@ export default function App() {
             </span>
             <div>
               <div className="top-nav__title">
-                {pageTitles[location.pathname] || 'FarmWise AI'}
+                {pageTitles[location.pathname] || 'Kisan Saathi AI'}
               </div>
             </div>
           </div>

@@ -1,29 +1,34 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getChatResponse } from '../data/chatResponses';
-import { fetchWeather } from '../utils/weatherApi';
+import { fetchAIResponse } from '../services/aiAdvisor';
 import { useLanguage } from '../utils/i18n';
+import { detectLanguage, kisanSaathiTTS } from '../services/voiceEngine';
+import { useWeather } from '../utils/WeatherContext';
+import { useSettings } from '../utils/SettingsContext';
+import { useLibrary } from '../utils/LibraryContext';
 
-// Rural friendly common queries
 const SUGGESTIONS = [
-    'Will it rain tomorrow',
-    'My crop leaf has yellow spots',
-    'Price of tomatoes today',
-    'When should I sow wheat',
-    'Tell me a way to save water',
+    'मेरे पास 10kg आलू है, क्या मैं आज बेच सकता हूँ?',
+    'Will it rain tomorrow in my area?',
+    'मेरे टमाटर के पौधे पर काले धब्बे हैं, क्या करूँ?',
+    'வெங்காயம் விற்க சிறந்த விலை எங்கே கிடைக்கும்?',
+    'When is the best time to sow Wheat?',
 ];
 
 export default function AssistantPage() {
     const { t, currentLang } = useLanguage();
+    const { weatherData } = useWeather();
+    const { isOffline } = useSettings();
+    const { addToChatHistory } = useLibrary();
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [isListening, setIsListening] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
-    const [weatherData, setWeatherData] = useState(null);
+    const [activeLangCode, setActiveLangCode] = useState(currentLang.speechLang);
     const messagesEndRef = useRef(null);
     const recognitionRef = useRef(null);
 
-    // Identity: Kisan Saathi AI
+    // Set initial welcome message
     useEffect(() => {
         setMessages([
             {
@@ -31,51 +36,31 @@ export default function AssistantPage() {
                 text: t('assistant_welcome'),
             },
         ]);
+        setActiveLangCode(currentLang.speechLang);
     }, [currentLang.id]);
 
-    useEffect(() => {
-        // Mock fetch based on general location for demo
-        fetchWeather('pune').then((data) => setWeatherData(data));
-    }, []);
-
+    // Scroll to bottom
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isTyping]);
 
-    /**
-     * VOIE INPUT PIPELINE (NVIDIA Riva Simulation)
-     */
+    // Initialize Speech Recognition
     useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
             recognition.continuous = false;
             recognition.interimResults = false;
-            recognition.lang = currentLang.speechLang;
+            recognition.lang = activeLangCode;
 
             recognition.onresult = (event) => {
-                const result = event.results[0][0];
-                const transcript = result.transcript;
-                const confidence = result.confidence || 0.9; // Browser confidence
-
-                // CORE RULE: If transcription confidence < 0.75: Ask user to repeat slowly
-                if (confidence < 0.75) {
-                    const fallbackMsg = "I could not hear you clearly. Please speak slowly.";
-                    setMessages(prev => [...prev, { role: 'user', text: transcript }, { role: 'assistant', text: fallbackMsg }]);
-                    speakResponse(fallbackMsg);
-                    return;
-                }
-
+                const transcript = event.results[0][0].transcript;
                 setInput(transcript);
                 setIsListening(false);
                 handleSendMessage(transcript);
             };
 
-            recognition.onerror = (event) => {
-                console.error('ASR Error:', event.error);
-                setIsListening(false);
-            };
-
+            recognition.onerror = () => setIsListening(false);
             recognition.onend = () => setIsListening(false);
             recognitionRef.current = recognition;
         }
@@ -85,49 +70,35 @@ export default function AssistantPage() {
                 try { recognitionRef.current.stop(); } catch (e) { /* ignore */ }
             }
         };
-    }, [currentLang.speechLang]);
+    }, [activeLangCode]);
 
     /**
-     * TEXT TO SPEECH PIPELINE (NVIDIA TTS / Edge Fallback Simulation)
+     * Kisan Saathi Voice Engine (Powered by NVIDIA)
      */
-    const speakResponse = useCallback((text) => {
-        if (!window.speechSynthesis) return;
-
-        window.speechSynthesis.cancel();
-
-        // PRIMARY TTS: NVIDIA TTS Simulation
-        // We use Web Speech API as the engine, simulated as NVIDIA pipelines
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = currentLang.speechLang;
-        utterance.rate = 0.85; // Rural-friendly slow speed
-        utterance.pitch = 1.0;
-
-        // Fallback Logic: Detect long delay or failure
-        let ttsStartTime = Date.now();
-
-        utterance.onstart = () => {
-            setIsSpeaking(true);
-            const latency = (Date.now() - ttsStartTime) / 1000;
-            if (latency > 2) {
-                console.log("Latency > 2s: Automatically switched to NVIDIA Edge TTS (simulated)");
-            }
-        };
-
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = (event) => {
-            console.warn('Primary TTS failed, using Fallback NVIDIA Edge TTS...');
-            // In a real app, logic would switch here. For demo, we just log and proceed.
-            setIsSpeaking(false);
-        };
-
-        window.speechSynthesis.speak(utterance);
-    }, [currentLang]);
-
-    const stopSpeaking = useCallback(() => {
-        if (window.speechSynthesis) {
+    const speakResponse = useCallback(async (text, langCode) => {
+        if (isSpeaking) {
             window.speechSynthesis.cancel();
+        }
+
+        // Clean text for TTS
+        const cleanText = text
+            .replace(/\*\*(.*?)\*\*/g, '$1')
+            .replace(/\n/g, ' ')
+            .replace(/#/g, '');
+
+        setIsSpeaking(true);
+        try {
+            await kisanSaathiTTS(cleanText, langCode || activeLangCode);
+        } catch (e) {
+            console.error("TTS Output Failed", e);
+        } finally {
             setIsSpeaking(false);
         }
+    }, [activeLangCode, isSpeaking]);
+
+    const stopSpeaking = useCallback(() => {
+        window.speechSynthesis.cancel();
+        setIsSpeaking(false);
     }, []);
 
     const handleSendMessage = useCallback(
@@ -135,20 +106,45 @@ export default function AssistantPage() {
             const messageText = text || input.trim();
             if (!messageText) return;
 
+            // 1. Detect Language Automatically
+            const detectedLangId = detectLanguage(messageText);
+            const languageMap = {
+                'en': 'en-IN',
+                'hi': 'hi-IN',
+                'ta': 'ta-IN',
+                'te': 'te-IN',
+                'kn': 'kn-IN',
+                'ml': 'ml-IN',
+                'mr': 'hi-IN' // Falling back to hi-IN for Marathi if strict voice not available
+            };
+            const responseLangCode = languageMap[detectedLangId] || activeLangCode;
+            setActiveLangCode(responseLangCode);
+
+            // Add user message
             setMessages((prev) => [...prev, { role: 'user', text: messageText }]);
             setInput('');
             setIsTyping(true);
 
-            // Simulation of AI thinking
-            await new Promise((r) => setTimeout(r, 1000));
+            // 2. REAL-TIME AI ADVISOR PROCESSING
+            try {
+                const response = await fetchAIResponse(messageText, weatherData, detectedLangId, isOffline);
 
-            const response = getChatResponse(messageText, weatherData);
-            setMessages((prev) => [...prev, { role: 'assistant', text: response }]);
-            setIsTyping(false);
+                // Save to Library
+                addToChatHistory(messageText, response, detectedLangId);
 
-            setTimeout(() => speakResponse(response), 200);
+                setMessages((prev) => [...prev, { role: 'assistant', text: response, langCode: responseLangCode }]);
+                setIsTyping(false);
+
+                // 3. Voice Output (NVIDIA Engine)
+                setTimeout(() => {
+                    speakResponse(response, responseLangCode);
+                }, 200);
+            } catch (err) {
+                console.error("AI Assistant Error:", err);
+                setIsTyping(false);
+            }
         },
-        [input, weatherData, speakResponse]
+        [input, weatherData, activeLangCode, speakResponse, isOffline, addToChatHistory]
     );
 
     const toggleListening = () => {
@@ -160,13 +156,9 @@ export default function AssistantPage() {
             recognitionRef.current.stop();
         } else {
             stopSpeaking();
-            try {
-                recognitionRef.current.lang = currentLang.speechLang;
-                recognitionRef.current.start();
-                setIsListening(true);
-            } catch (e) {
-                setIsListening(false);
-            }
+            recognitionRef.current.lang = activeLangCode;
+            recognitionRef.current.start();
+            setIsListening(true);
         }
     };
 
@@ -177,17 +169,33 @@ export default function AssistantPage() {
         }
     };
 
+    const formatMessage = (text) => {
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br/>');
+    };
+
     return (
         <div className="chat-page">
             <div className="chat-page__header">
-                <h2>{t('assistant_title')}</h2>
-                <p>{t('assistant_subtitle')}</p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '2rem' }}>🌾</span>
+                    <div style={{ textAlign: 'left' }}>
+                        <h2 style={{ margin: 0 }}>{t('assistant_title')}</h2>
+                        <p style={{ margin: 0, opacity: 0.8 }}>{t('assistant_subtitle')}</p>
+                    </div>
+                </div>
+
+                <div style={{ marginTop: '10px', fontSize: '0.7rem', color: 'var(--green-600)', fontWeight: 'bold' }}>
+                    POWERED BY NVIDIA RIVA & TTS
+                </div>
+
                 {isSpeaking && (
-                    <div className="speaking-indicator" onClick={stopSpeaking}>
+                    <div className="speaking-indicator" onClick={stopSpeaking} style={{ margin: '15px auto 0' }}>
                         <span className="speaking-indicator__waves">
                             <span></span><span></span><span></span><span></span><span></span>
                         </span>
-                        <span className="speaking-indicator__text">{t('speaking')}</span>
+                        <span className="speaking-indicator__text">Kisan Saathi is Speaking...</span>
                     </div>
                 )}
             </div>
@@ -195,16 +203,20 @@ export default function AssistantPage() {
             <div className="chat-messages">
                 {messages.map((msg, i) => (
                     <div key={i} className={`chat-message chat-message--${msg.role}`}>
+                        <div className="chat-message__avatar">
+                            {msg.role === 'user' ? '👨‍🌾' : '🌾'}
+                        </div>
                         <div className="chat-message__content">
-                            <div className="chat-message__bubble">
-                                {msg.text}
-                            </div>
+                            <div
+                                className="chat-message__bubble"
+                                dangerouslySetInnerHTML={{ __html: formatMessage(msg.text) }}
+                            />
                             {msg.role === 'assistant' && i > 0 && (
                                 <button
                                     className="chat-message__speak-btn"
-                                    onClick={() => speakResponse(msg.text)}
+                                    onClick={() => speakResponse(msg.text, msg.langCode)}
                                 >
-                                    🔊
+                                    🔊 {t('listen_again') || 'Listen'}
                                 </button>
                             )}
                         </div>
@@ -213,6 +225,7 @@ export default function AssistantPage() {
 
                 {isTyping && (
                     <div className="chat-message chat-message--assistant">
+                        <div className="chat-message__avatar">🌾</div>
                         <div className="chat-message__content">
                             <div className="chat-message__bubble">
                                 <div className="typing-indicator">
@@ -225,17 +238,10 @@ export default function AssistantPage() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {messages.length <= 2 && (
+            {messages.length <= 1 && (
                 <div className="chat-suggestions">
                     {SUGGESTIONS.map((s, i) => (
-                        <button
-                            key={i}
-                            className="chat-suggestion-chip"
-                            onClick={() => {
-                                setInput(s);
-                                handleSendMessage(s);
-                            }}
-                        >
+                        <button key={i} className="chat-suggestion-chip" onClick={() => handleSendMessage(s)}>
                             {s}
                         </button>
                     ))}
@@ -248,7 +254,7 @@ export default function AssistantPage() {
                     onClick={toggleListening}
                     id="mic-btn"
                 >
-                    {isListening ? 'Stop' : 'Speak'}
+                    {isListening ? '⏹️' : '🎤'}
                 </button>
                 <input
                     type="text"
@@ -264,10 +270,9 @@ export default function AssistantPage() {
                     disabled={!input.trim() && !isListening}
                     id="send-btn"
                 >
-                    Send
+                    ➤
                 </button>
             </div>
         </div>
     );
 }
-

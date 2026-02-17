@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
-import { analyzeCropImage } from '../data/cropDiseases';
+import { analyzeCropImage } from '../services/cropAnalyzer';
 import { useLanguage } from '../utils/i18n';
+import { useLibrary } from '../utils/LibraryContext';
+import { useSettings } from '../utils/SettingsContext';
 
 export default function CropHealthPage() {
     const [selectedImage, setSelectedImage] = useState(null);
@@ -8,12 +10,16 @@ export default function CropHealthPage() {
     const [analyzing, setAnalyzing] = useState(false);
     const [result, setResult] = useState(null);
     const [dragActive, setDragActive] = useState(false);
-    const { t } = useLanguage();
+    const [error, setError] = useState(null);
+    const { t, lang } = useLanguage();
+    const { addToDetectionHistory } = useLibrary();
+    const { isOffline } = useSettings();
 
     const handleImageSelect = useCallback((file) => {
         if (file && file.type.startsWith('image/')) {
             setSelectedImage(file);
             setResult(null);
+            setError(null);
             const reader = new FileReader();
             reader.onload = (e) => setImagePreview(e.target.result);
             reader.readAsDataURL(file);
@@ -44,14 +50,26 @@ export default function CropHealthPage() {
     };
 
     const handleAnalyze = async () => {
-        if (!selectedImage) return;
+        if (!selectedImage || !imagePreview) return;
         setAnalyzing(true);
         setResult(null);
+        setError(null);
         try {
-            const diagnosis = await analyzeCropImage();
+            const diagnosis = await analyzeCropImage(imagePreview, isOffline, lang);
+
+            if (!diagnosis || typeof diagnosis !== 'object') {
+                throw new Error("Invalid response from analysis engine");
+            }
+
             setResult(diagnosis);
+
+            // Save to Library (using imagePreview which is base64)
+            if (diagnosis.healthStatus !== 'Error') {
+                await addToDetectionHistory(imagePreview, diagnosis);
+            }
         } catch (err) {
             console.error('Analysis failed:', err);
+            setError(err.message || "An unexpected error occurred during analysis.");
         }
         setAnalyzing(false);
     };
@@ -60,10 +78,11 @@ export default function CropHealthPage() {
         setSelectedImage(null);
         setImagePreview(null);
         setResult(null);
+        setError(null);
         setAnalyzing(false);
     };
 
-    const severityClass = result?.severity?.toLowerCase() || 'low';
+    const severityClass = String(result?.severity || 'low').toLowerCase();
 
     return (
         <div className="crop-page page-wrapper">
@@ -72,8 +91,29 @@ export default function CropHealthPage() {
                 <p>{t('crop_subtitle')}</p>
             </div>
 
+            {/* Error Message */}
+            {error && (
+                <div style={{
+                    background: '#fee2e2',
+                    color: '#991b1b',
+                    padding: '16px',
+                    borderRadius: '12px',
+                    marginBottom: '20px',
+                    border: '1px solid #fecaca',
+                    fontSize: '0.9rem'
+                }}>
+                    <strong>⚠️ Error:</strong> {error}
+                    <button
+                        onClick={handleReset}
+                        style={{ display: 'block', marginTop: '10px', color: '#991b1b', fontWeight: 'bold', background: 'none', border: 'none', padding: 0, textDecoration: 'underline' }}
+                    >
+                        Try again
+                    </button>
+                </div>
+            )}
+
             {/* Upload Zone */}
-            {!imagePreview && (
+            {!imagePreview && !error && (
                 <div
                     className={`upload-zone ${dragActive ? 'upload-zone--active' : ''}`}
                     onDragEnter={handleDrag}
@@ -98,7 +138,7 @@ export default function CropHealthPage() {
             )}
 
             {/* Image Preview */}
-            {imagePreview && (
+            {imagePreview && !result && !error && (
                 <div>
                     <div className="crop-preview">
                         <img src={imagePreview} alt="Uploaded crop leaf" />
@@ -120,7 +160,7 @@ export default function CropHealthPage() {
                         </div>
                     </div>
 
-                    {!analyzing && !result && (
+                    {!analyzing && (
                         <button
                             className="crop-analyze-btn"
                             onClick={handleAnalyze}
@@ -149,16 +189,16 @@ export default function CropHealthPage() {
                     <div className={`crop-result__header crop-result__header--${severityClass}`}>
                         <div>
                             <span className={`crop-result__severity crop-result__severity--${severityClass}`}>
-                                {severityClass === 'low' && '🟢'}
-                                {severityClass === 'moderate' && '🟡'}
-                                {severityClass === 'high' && '🔴'}
-                                {' '}{result.severity} {t('severity')}
+                                {severityClass.includes('low') && '🟢'}
+                                {severityClass.includes('moderate') && '🟡'}
+                                {severityClass.includes('high') && '🔴'}
+                                {' '}{String(result.severity || '')} {t('severity')}
                             </span>
                             <div className="crop-result__disease" style={{ marginTop: 8 }}>
-                                {result.name}
+                                {String(result.name || 'Unknown Identification')}
                             </div>
                             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                                {t('confidence')}: {result.confidence}%
+                                {t('confidence')}: {result.confidence || 0}%
                             </div>
                         </div>
                     </div>
@@ -166,18 +206,27 @@ export default function CropHealthPage() {
                     <div className="crop-result__body">
                         <div className="crop-result__section">
                             <div className="crop-result__section-title">📋 {t('description')}</div>
-                            <div className="crop-result__section-text">{result.description}</div>
+                            <div className="crop-result__section-text">
+                                {typeof result.description === 'string' ? result.description : JSON.stringify(result.description)}
+                            </div>
                         </div>
 
                         <div className="crop-result__section">
                             <div className="crop-result__section-title">💡 {t('recommended_actions')}</div>
                             <ul className="crop-result__action-list">
-                                {result.actions.map((action, i) => (
-                                    <li key={i} className="crop-result__action-item">
-                                        <span className="crop-result__action-icon">{action.icon}</span>
-                                        <span>{action.text}</span>
+                                {result.actions && Array.isArray(result.actions) && result.actions.length > 0 ? (
+                                    result.actions.map((action, i) => (
+                                        <li key={i} className="crop-result__action-item">
+                                            <span className="crop-result__action-icon">{String(action?.icon || 'ℹ️')}</span>
+                                            <span>{String(action?.text || 'Keep monitoring')}</span>
+                                        </li>
+                                    ))
+                                ) : (
+                                    <li className="crop-result__action-item">
+                                        <span className="crop-result__action-icon">🌿</span>
+                                        <span>No specific actions identified. Maintain standard care.</span>
                                     </li>
-                                ))}
+                                )}
                             </ul>
                         </div>
                     </div>

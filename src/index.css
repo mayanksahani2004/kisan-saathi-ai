@@ -165,6 +165,21 @@ a {
   padding-bottom: 80px;
 }
 
+.offline-banner {
+  background: var(--amber-500);
+  color: white;
+  padding: var(--space-2) var(--space-5);
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  z-index: 99;
+}
+
 /* Typography */
 h1,
 h2,
@@ -289,14 +304,15 @@ h4 {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 500;
   color: var(--gray-400);
   text-decoration: none;
   position: relative;
+  min-width: 60px;
 }
 
 .bottom-nav__item.active {
@@ -384,7 +400,7 @@ h4 {
 
 @media (min-width: 768px) {
   .dashboard__grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     max-width: 900px;
   }
 }
@@ -427,6 +443,14 @@ h4 {
 
 .dashboard__card--chat::before {
   background: linear-gradient(90deg, #a78bfa, #7c3aed);
+}
+
+.dashboard__card--library::before {
+  background: linear-gradient(90deg, #f472b6, #db2777);
+}
+
+.dashboard__card--settings::before {
+  background: linear-gradient(90deg, #94a3b8, #475569);
 }
 
 .dashboard__card:hover {

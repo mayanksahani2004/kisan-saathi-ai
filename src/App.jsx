@@ -5,20 +5,26 @@ import WeatherPage from './pages/WeatherPage';
 import CropHealthPage from './pages/CropHealthPage';
 import MarketPage from './pages/MarketPage';
 import AssistantPage from './pages/AssistantPage';
+import SettingsPage from './pages/SettingsPage';
+import LibraryPage from './pages/LibraryPage';
 import './App.css';
+import { useSettings } from './utils/SettingsContext';
 
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === '/';
   const { t } = useLanguage();
+  const { isOffline } = useSettings();
 
   const pageTitles = {
-    '/': 'Kisan Saathi AI',
+    '/': 'Kisan Saathi',
     '/weather': t('weather'),
     '/crop-health': t('crop_health'),
     '/market': t('market_prices'),
     '/assistant': t('voice_assistant'),
+    '/library': t('library'),
+    '/settings': t('settings'),
   };
 
   return (
@@ -33,8 +39,8 @@ export default function App() {
           <div className="top-nav__brand">
             <span className="top-nav__logo">🌾</span>
             <div>
-              <div className="top-nav__title">Kisan Saathi AI</div>
-              <div className="top-nav__subtitle">Aapka Apna Kheti Assistant</div>
+              <div className="top-nav__title">Kisan Saathi</div>
+              <div className="top-nav__subtitle">Smart Agriculture AI</div>
             </div>
           </div>
         )}
@@ -45,15 +51,24 @@ export default function App() {
               {location.pathname === '/crop-health' && '🔬'}
               {location.pathname === '/market' && '📊'}
               {location.pathname === '/assistant' && '🤖'}
+              {location.pathname === '/library' && '📚'}
+              {location.pathname === '/settings' && '⚙️'}
             </span>
             <div>
               <div className="top-nav__title">
-                {pageTitles[location.pathname] || 'Kisan Saathi AI'}
+                {pageTitles[location.pathname] || 'Kisan Saathi'}
               </div>
             </div>
           </div>
         )}
       </nav>
+
+      {/* Offline Notice Banner */}
+      {isOffline && (
+        <div className="offline-banner">
+          <span>⚠️ {t('offline_notice')}</span>
+        </div>
+      )}
 
       {/* Main Content */}
       <Routes>
@@ -62,6 +77,8 @@ export default function App() {
         <Route path="/crop-health" element={<CropHealthPage />} />
         <Route path="/market" element={<MarketPage />} />
         <Route path="/assistant" element={<AssistantPage />} />
+        <Route path="/library" element={<LibraryPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Routes>
 
       {/* Bottom Navigation */}
@@ -100,6 +117,20 @@ export default function App() {
         >
           <span className="bottom-nav__icon">🤖</span>
           {t('chat')}
+        </Link>
+        <Link
+          to="/library"
+          className={`bottom-nav__item ${location.pathname === '/library' ? 'active' : ''}`}
+        >
+          <span className="bottom-nav__icon">📚</span>
+          {t('library')}
+        </Link>
+        <Link
+          to="/settings"
+          className={`bottom-nav__item ${location.pathname === '/settings' ? 'active' : ''}`}
+        >
+          <span className="bottom-nav__icon">⚙️</span>
+          {t('settings')}
         </Link>
       </nav>
     </>

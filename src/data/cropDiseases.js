@@ -1,7 +1,7 @@
 // Simulated crop disease detection responses
 // Rule-based AI logic for realistic demo output
 
-const diseaseDatabase = [
+export const diseaseDatabase = [
     {
         id: 'early_blight',
         name: 'Early Blight (Alternaria solani)',
@@ -106,5 +106,3 @@ export const analyzeCropImage = () => {
         }, delay);
     });
 };
-
-export default diseaseDatabase;

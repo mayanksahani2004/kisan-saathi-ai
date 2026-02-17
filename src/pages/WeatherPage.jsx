@@ -7,21 +7,18 @@ import {
     getLocationList,
 } from '../utils/weatherApi';
 import { useLanguage } from '../utils/i18n';
+import { useWeather } from '../utils/WeatherContext';
 
 export default function WeatherPage() {
-    const [weather, setWeather] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [selectedLocation, setSelectedLocation] = useState('pune');
+    const {
+        selectedLocation,
+        setSelectedLocation,
+        weatherData: weather,
+        loading
+    } = useWeather();
+
     const locations = getLocationList();
     const { t } = useLanguage();
-
-    useEffect(() => {
-        setLoading(true);
-        fetchWeather(selectedLocation).then((data) => {
-            setWeather(data);
-            setLoading(false);
-        });
-    }, [selectedLocation]);
 
     const currentWeather = weather?.current;
     const dailyWeather = weather?.daily;

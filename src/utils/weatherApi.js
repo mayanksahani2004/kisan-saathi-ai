@@ -149,16 +149,21 @@ export const getDayName = (dateStr, index) => {
     return date.toLocaleDateString('en-US', { weekday: 'short' });
 };
 
-// Fallback mock data
-function getMockWeatherData(locationName) {
+// Fallback mock data with location-based variations
+export function getMockWeatherData(locationName) {
+    // Generate a simple seed from the location name
+    const seed = locationName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const tempShift = (seed % 10) - 5; // -5 to +5 range
+    const humidityShift = (seed % 20) - 10; // -10 to +10 range
+
     return {
         locationName,
         current: {
-            temperature_2m: 28,
-            relative_humidity_2m: 65,
-            apparent_temperature: 30,
-            weather_code: 2,
-            wind_speed_10m: 12,
+            temperature_2m: 28 + tempShift,
+            relative_humidity_2m: 65 + humidityShift,
+            apparent_temperature: 30 + tempShift,
+            weather_code: seed % 3, // Randomize between Clear, Mostly Clear, Partly Cloudy
+            wind_speed_10m: 10 + (seed % 15),
         },
         daily: {
             time: Array.from({ length: 7 }, (_, i) => {
@@ -166,10 +171,10 @@ function getMockWeatherData(locationName) {
                 d.setDate(d.getDate() + i);
                 return d.toISOString().split('T')[0];
             }),
-            temperature_2m_max: [32, 31, 30, 33, 34, 32, 30],
-            temperature_2m_min: [22, 21, 20, 23, 24, 22, 21],
-            weather_code: [2, 3, 61, 1, 0, 2, 80],
-            precipitation_probability_max: [15, 35, 75, 10, 5, 20, 60],
+            temperature_2m_max: [32, 31, 30, 33, 34, 32, 30].map(t => t + tempShift),
+            temperature_2m_min: [22, 21, 20, 23, 24, 22, 21].map(t => t + tempShift),
+            weather_code: [2, 3, 61, 1, 0, 2, 80].map(c => (c + (seed % 5)) % 95), // Varied codes
+            precipitation_probability_max: [15, 35, 75, 10, 5, 20, 60].map(p => Math.min(100, Math.max(0, p + humidityShift))),
             precipitation_sum: [0, 0, 12, 0, 0, 0, 8],
         },
     };

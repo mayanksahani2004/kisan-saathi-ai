@@ -1,17 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchWeather, getWeatherInfo } from '../utils/weatherApi';
+import { getWeatherInfo } from '../utils/weatherApi';
 import { useLanguage } from '../utils/i18n';
 import FarmerLogo from '../components/FarmerLogo';
+import { useWeather } from '../utils/WeatherContext';
 
 export default function Dashboard() {
-    const [weather, setWeather] = useState(null);
+    const { weatherData: weather, loading } = useWeather();
     const { t, lang, setLang, LANGUAGES, currentLang } = useLanguage();
     const [showLangPicker, setShowLangPicker] = useState(false);
-
-    useEffect(() => {
-        fetchWeather('pune').then(data => setWeather(data));
-    }, []);
 
     const currentTemp = weather?.current?.temperature_2m;
     const weatherCode = weather?.current?.weather_code;
@@ -114,6 +111,18 @@ export default function Dashboard() {
                     <span className="dashboard__card-icon">🤖</span>
                     <div className="dashboard__card-title">{t('voice_assistant')}</div>
                     <div className="dashboard__card-desc">{t('voice_assistant_desc')}</div>
+                </Link>
+
+                <Link to="/library" className="dashboard__card dashboard__card--library" id="card-library">
+                    <span className="dashboard__card-icon">📚</span>
+                    <div className="dashboard__card-title">{t('library')}</div>
+                    <div className="dashboard__card-desc">{t('chat_history')}</div>
+                </Link>
+
+                <Link to="/settings" className="dashboard__card dashboard__card--settings" id="card-settings">
+                    <span className="dashboard__card-icon">⚙️</span>
+                    <div className="dashboard__card-title">{t('settings')}</div>
+                    <div className="dashboard__card-desc">{t('online_mode')}</div>
                 </Link>
             </div>
         </div>

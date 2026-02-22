@@ -57,25 +57,28 @@ export const analyzeCropImage = async (imageBase64, isOffline = false, langId = 
 
     try {
         const prompt = `
-            Analyze this agricultural crop image in TWO steps:
-            STEP 1: Identify the crop type (e.g., Tomato, Wheat, Potato, Rice, Apple, etc.).
-            STEP 2: Scan for any infected spots, discoloration, or pests on the leaves or fruit.
+            AGRICULTURAL ANALYSIS TASK:
+            1. OBJECT DETECTION (YOLO-style): Locate the main crop, leaves, or fruit in the image.
+            2. CLASSIFICATION: Identify the specific crop variety (e.g., Apple, Orange, Tomato, Wheat, etc.).
+            3. DIAGNOSIS: Search for anomalies like spots, mold, pests, or discoloration.
 
-            - If infected spots are found: Identify the disease, provide expert insights, and list practical remedies. Set healthStatus to "Infected".
-            - If no issues are found: Confirm the crop is healthy. Set healthStatus to "Healthy".
+            DRY RUN OF RESULTS:
+            - If disease is detected: Name the specific disease (e.g., 'Orange - Green Mold' or 'Apple - Scab').
+            - If healthy: State the crop and health (e.g., 'Healthy Tomato' or 'Healthy Rice').
 
-            CRITICAL: Provide the response in this language: "${langId}".
-            The values for "name", "description", and "text" inside "actions" MUST be in ${langId}.
+            CRITICAL:
+            - Language: ${langId}. All text fields MUST be translated.
+            - Format: Return ONLY a valid JSON object. Do not explain.
 
-            RETURN ONLY A JSON OBJECT with this structure:
+            JSON STRUCTURE TO POPULATE:
             {
-                "name": "Identified Crop - Status (In ${langId})",
+                "name": "[Actual Crop Name] - [Actual Health Status]",
                 "healthStatus": "Healthy" | "Infected",
                 "severity": "Low" | "Moderate" | "High",
-                "confidence": number,
-                "description": "Expert insights in ${langId}",
+                "confidence": number between 80-99,
+                "description": "Provide professional insights about the visual symptoms.",
                 "actions": [
-                    {"icon": "emoji", "text": "Specific remedy or care tip in ${langId}"}
+                    {"icon": "emoji", "text": "Specific remedy or preventive action"}
                 ]
             }
         `;

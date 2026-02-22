@@ -992,6 +992,81 @@ h4 {
 }
 
 /* Results Card */
+/* Vision Scanner & YOLO Bounding Boxes */
+.vision-scanner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 5px;
+  background: linear-gradient(90deg, transparent, var(--green-400), transparent);
+  box-shadow: 0 0 15px var(--green-400);
+  z-index: 10;
+  animation: scan 2s linear infinite;
+}
+
+@keyframes scan {
+  0% {
+    top: 0;
+  }
+
+  50% {
+    top: 100%;
+  }
+
+  100% {
+    top: 0;
+  }
+}
+
+.vision-box {
+  position: absolute;
+  border: 2px solid var(--green-400);
+  background: rgba(74, 222, 128, 0.1);
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+  pointer-events: none;
+  z-index: 9;
+  animation: boxPulse 1.5s ease-in-out infinite;
+}
+
+.vision-box::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  width: 20px;
+  height: 20px;
+  border-top: 3px solid var(--green-500);
+  border-left: 3px solid var(--green-500);
+}
+
+.vision-box::after {
+  content: 'Analyzing...';
+  position: absolute;
+  top: -24px;
+  left: 0;
+  background: var(--green-600);
+  color: white;
+  font-size: 0.6rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+@keyframes boxPulse {
+
+  0%,
+  100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: scale(0.98);
+  }
+}
+
 .crop-result {
   background: var(--bg-card);
   border-radius: var(--radius-xl);

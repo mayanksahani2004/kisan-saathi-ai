@@ -137,30 +137,43 @@ export default function CropHealthPage() {
                 </div>
             )}
 
-            {/* Image Preview */}
-            {imagePreview && !result && !error && (
-                <div>
-                    <div className="crop-preview">
+            {/* Image Preview & Scanning UI */}
+            {imagePreview && !error && (
+                <div style={{ position: 'relative' }}>
+                    <div className="crop-preview" style={{ marginBottom: result ? '0' : '20px' }}>
                         <img src={imagePreview} alt="Uploaded crop leaf" />
+
+                        {/* Vision Scanning Overlays (YOLO Style) */}
+                        {analyzing && (
+                            <>
+                                <div className="vision-scanner"></div>
+                                <div className="vision-box" style={{ top: '20%', left: '15%', width: '30%', height: '25%' }}></div>
+                                <div className="vision-box" style={{ top: '50%', left: '45%', width: '35%', height: '30%', animationDelay: '0.5s' }}></div>
+                                <div className="vision-box" style={{ top: '10%', left: '60%', width: '20%', height: '20%', animationDelay: '1s' }}></div>
+                            </>
+                        )}
+
                         <div className="crop-preview__overlay">
                             <span>{selectedImage?.name || 'Leaf Image'}</span>
-                            <button
-                                onClick={handleReset}
-                                style={{
-                                    background: 'rgba(255,255,255,0.2)',
-                                    color: '#fff',
-                                    padding: '6px 14px',
-                                    borderRadius: '20px',
-                                    fontSize: '0.8rem',
-                                    backdropFilter: 'blur(4px)',
-                                }}
-                            >
-                                ✕ {t('remove')}
-                            </button>
+                            {!analyzing && !result && (
+                                <button
+                                    onClick={handleReset}
+                                    style={{
+                                        background: 'rgba(255,255,255,0.2)',
+                                        color: '#fff',
+                                        padding: '6px 14px',
+                                        borderRadius: '20px',
+                                        fontSize: '0.8rem',
+                                        backdropFilter: 'blur(4px)',
+                                    }}
+                                >
+                                    ✕ {t('remove')}
+                                </button>
+                            )}
                         </div>
                     </div>
 
-                    {!analyzing && (
+                    {!analyzing && !result && (
                         <button
                             className="crop-analyze-btn"
                             onClick={handleAnalyze}
@@ -172,13 +185,15 @@ export default function CropHealthPage() {
                 </div>
             )}
 
-            {/* Loading Animation */}
+            {/* Loading Status */}
             {analyzing && (
-                <div className="crop-loading">
-                    <div className="crop-loading__spinner"></div>
-                    <div className="crop-loading__text">{t('analyzing')}</div>
+                <div className="crop-loading" style={{ marginTop: '-20px' }}>
+                    <div className="crop-loading__spinner" style={{ width: 40, height: 40 }}></div>
+                    <div className="crop-loading__text" style={{ fontSize: '1.2rem', color: 'var(--green-600)' }}>
+                        🚀 {t('analyzing')}...
+                    </div>
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 8 }}>
-                        {t('analyzing_detail')}
+                        {t('analyzing_detail')} (Vision AI & YOLO Scan)
                     </p>
                 </div>
             )}
